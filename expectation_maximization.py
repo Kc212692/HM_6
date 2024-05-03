@@ -41,6 +41,7 @@ def confusion_matrix(true_labels, predicted_labels):
 def compute_ARI(confusion_matrix: NDArray[np.int32]):
     """
     Compute the Adjusted Rand Index (ARI) metric for evaluating the performance of a clustering algorithm.
+    (I AM NOT CONVINCED THE RESULTS ARE CORRECT)
 
     Parameters:
     confusion_matrix (numpy.ndarray): The confusion matrix representing the clustering results.
@@ -48,18 +49,14 @@ def compute_ARI(confusion_matrix: NDArray[np.int32]):
     Returns:
     float: The computed ARI value.
 
-    The ARI is a measure of the similarity between two data clusterings. It takes into account both the similarity of the
-    clusters themselves and the similarity of the cluster assignments. A higher ARI value indicates a better clustering
-    performance.
-
     The ARI is computed using the formula:
     ARI = (tp * tn - fp * fn) / sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 
     where:
-    - tp: True positives (number of pairs of samples that are in the same cluster in both the true and predicted labels)
-    - tn: True negatives (number of pairs of samples that are not in the same cluster in both the true and predicted labels)
-    - fp: False positives (number of pairs of samples that are in the same cluster in the true labels but not in the predicted labels)
-    - fn: False negatives (number of pairs of samples that are not in the same cluster in the true labels but in the predicted labels)
+    - tp: True positives
+    - tn: True negatives
+    - fp: False positives
+    - fn: False negatives
     """
     tp = confusion_matrix[0, 0]
     tn = confusion_matrix[1, 1]
@@ -79,20 +76,16 @@ def adjusted_rand_index(labels_true, labels_pred) -> float:
     Returns:
     - ari: The adjusted Rand index value.
 
-    The adjusted Rand index is a measure of the similarity between two data clusterings.
-    It takes into account both the similarity of the clusters themselves and the similarity
-    of the data points within each cluster. The adjusted Rand index ranges from -1 to 1,
+    The adjusted Rand index ranges from -1 to 1,
     where a value of 1 indicates perfect agreement between the two clusterings, 0 indicates
     random agreement, and -1 indicates complete disagreement.
     """
-    # Create contingency table
     contingency_table = np.histogram2d(
         labels_true,
         labels_pred,
         bins=(np.unique(labels_true).size, np.unique(labels_pred).size),
     )[0]
 
-    # Sum over rows and columns
     sum_combinations_rows = np.sum(
         [np.sum(nj) * (np.sum(nj) - 1) / 2 for nj in contingency_table]
     )
@@ -100,11 +93,9 @@ def adjusted_rand_index(labels_true, labels_pred) -> float:
         [np.sum(ni) * (np.sum(ni) - 1) / 2 for ni in contingency_table.T]
     )
 
-    # Sum of combinations for all elements
     N = np.sum(contingency_table)
     sum_combinations_total = N * (N - 1) / 2
 
-    # Calculate ARI
     ari = (
         np.sum([np.sum(n_ij) * (np.sum(n_ij) - 1) / 2 for n_ij in contingency_table])
         - (sum_combinations_rows * sum_combinations_cols) / sum_combinations_total
@@ -115,6 +106,8 @@ def adjusted_rand_index(labels_true, labels_pred) -> float:
 
     return ari
 
+# ----------------------------------------------------------------------
+
 def multivariate_pdf(data, mean, cov):
     """Calculate the probability density function of a multivariate normal distribution."""
     mean = np.asarray(mean).flatten()  # Ensure mean is a 1D array for operations
@@ -122,25 +115,21 @@ def multivariate_pdf(data, mean, cov):
     k = mean.size
 
     assert data.shape[1] == k, "Data and mean dimensions do not match"
-    assert (
-        mean.size == cov.shape[0] == cov.shape[1]
-    ), "Mean and covariance dimensions do not match"
+    assert mean.size == cov.shape[0] == cov.shape[1], "Mean and covariance dimensions do not match"
 
-    # Calculate the inverse and determinant of the covariance matrix
     inv_cov = np.linalg.inv(cov)
     det_cov = np.linalg.det(cov)
     norm_const = 1.0 / (np.sqrt((2 * np.pi) ** k * det_cov))
 
-    # Difference between data points and mean
     diff = data - mean
     if diff.ndim == 1:
         diff = diff.reshape(1, -1)  # Reshape diff to 2D if it's 1D
 
-    # Exponent term in the multivariate normal PDF
     exponent = -0.5 * np.sum(diff @ inv_cov * diff, axis=1)
 
-    # Return the PDF value
     return norm_const * np.exp(exponent)
+
+# ----------------------------------------------------------------------
 
 def extract_samples(data: NDArray[np.floating], labels: NDArray[np.int32], num_samples: int) -> tuple[NDArray[np.floating], NDArray[np.int32]]:
     """
@@ -159,6 +148,8 @@ def extract_samples(data: NDArray[np.floating], labels: NDArray[np.int32], num_s
     data_samples = data[indices]
     label_samples = labels[indices]
     return data_samples, label_samples
+
+# ----------------------------------------------------------------------
 
 def em_algorithm(data: NDArray[np.floating], max_iter: int = 100) -> tuple[
     NDArray[np.floating] | None,
@@ -188,8 +179,6 @@ def em_algorithm(data: NDArray[np.floating], max_iter: int = 100) -> tuple[
     - If this code is copied from some source, make sure to reference the
         source in this doc-string.
     """
-    # CODE FILLED BY STUDENT
-
     n, d = data.shape
 
     # Initialize parameters randomly
@@ -253,7 +242,10 @@ def em_algorithm(data: NDArray[np.floating], max_iter: int = 100) -> tuple[
         np.array(log_likelihoods),
         predicted_labels,
     )
+    # added predicted_labels. Fix type hints in function signature
 
+
+# ----------------------------------------------------------------------
 def gaussian_mixture():
     """
     Calculate the parameters of a Gaussian mixture model using the EM algorithm.
@@ -266,32 +258,39 @@ def gaussian_mixture():
 
     def sample_estimate(data, labels, nb_samples=10000, max_iter=100):
         data_samples, label_samples = extract_samples(data, labels, nb_samples)
-        weights, means, covariances, log_likelihoods, predicted_labels = em_algorithm(data_samples, max_iter)
+        weights, means, covariances, log_likelihoods, predicted_labels = em_algorithm(
+            data_samples, max_iter
+        )
+
         confusion_mat = confusion_matrix(label_samples, predicted_labels)
         ARI = adjusted_rand_index(label_samples, predicted_labels)
         SSE = compute_SSE(data_samples, predicted_labels)
 
         return weights, means, covariances, log_likelihoods, confusion_mat, ARI, SSE
 
+    # Call the function
     data_samples, label_samples = extract_samples(data, labels, 10000)
 
-    answers["em_algorithm_function"] = em_algorithm
+    plot = plt.scatter(data_samples[:, 0], data_samples[:, 1], c=label_samples, s=0.1)
+    answers["plot_original_cluster"] = plot
 
     max_iter = 100
-    weights, means, covariances, log_likelihoods, predicted_labels = em_algorithm(data, max_iter)
+    weights, means, covariances, log_likelihoods, predicted_labels = em_algorithm(
+        data, max_iter
+    )
+
     answers["log_likelihood"] = log_likelihoods
 
-    plt.plot(list(range(max_iter)), log_likelihoods)
+    plot_likelihood = plt.plot(list(range(max_iter)), log_likelihoods)
     plt.title("Log Likelihood vs. Iteration")
     plt.xlabel("Iteration")
     plt.ylabel("Log Likelihood")
     plt.grid(True)
+    answers["plot_log_likelihood"] = plot_likelihood
     plt.savefig("plot_log_likelihood.png")
 
     nb_trials = 10
     nb_samples = 10000
-    max_iter = max_iter
-
     means_lst = []
     weights_lst = []
     covariances_lst = []
@@ -299,7 +298,9 @@ def gaussian_mixture():
     ARI_lst = []
     SSE_lst = []
     for _ in range(nb_trials):
-        weights, means, covariances, log_likelihoods, confusion_mat, ARI, SSE = sample_estimate(data, labels, nb_samples=nb_samples, max_iter=max_iter)
+        weights, means, covariances, log_likelihoods, confusion_mat, ARI, SSE = (
+            sample_estimate(data, labels, nb_samples=nb_samples, max_iter=max_iter)
+        )
         weights_lst.append(weights)
         means_lst.append(means)
         covariances_lst.append(covariances)
@@ -348,6 +349,7 @@ def gaussian_mixture():
 
     return answers
 
+# ----------------------------------------------------------------------
 if __name__ == "__main__":
     all_answers = gaussian_mixture()
     with open("gaussian_mixture.pkl", "wb") as fd:
